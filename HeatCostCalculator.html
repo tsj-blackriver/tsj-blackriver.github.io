@@ -1,0 +1,224 @@
+<html>
+<head>
+	<style> 
+	body, input[type=number] {
+		padding: 9px;
+		box-sizing: border-box;
+		border: 2px solid black;
+		border-radius: 4px;
+		font-family: 'Helvetica', Arial, Lucida Grande, sans-serif;
+		font-size: 16px;
+	}
+	input[type=number]:disabled {
+		padding: 9px;
+		box-sizing: border-box;
+		border: 2px solid darkgray;
+		border-radius: 4px;
+		font-family: 'Helvetica', Arial, Lucida Grande, sans-serif;
+		font-size: 16px;
+	}
+	</style>	
+	<script type="text/javascript">
+
+function initStorage()
+{
+	try
+	{
+		JSON.parse(localStorage.heatCostCalculator);
+	}
+	catch (err)
+	{
+		localStorage.heatCostCalculator = JSON.stringify({});
+	}
+}
+
+function getData(key)
+{
+	var db = JSON.parse(localStorage.heatCostCalculator);
+	var result = db[String(key)];
+	return result ? result : {};
+}
+
+function setData(key, value)
+{
+	var db = JSON.parse(localStorage.heatCostCalculator);
+	db[String(key)] = value;
+	localStorage.heatCostCalculator = JSON.stringify(db);
+}
+
+function preflight()
+{
+	console.log("preflight");
+
+	initStorage();
+
+	var curDate = new Date();
+	var curData = getData(curDate.getMonth());
+	document.getElementById("curQ").value = curData["Q"];
+	document.getElementById("cur1").value = curData["1"];
+	document.getElementById("cur2").value = curData["2"];
+	document.getElementById("curMonth").innerHTML = 
+		curDate.toLocaleString("ru-ru", {month: "long"}).toUpperCase();
+
+	var k = curData["k"];
+	if (k)
+		document.getElementById("k").value = curData["k"];
+
+	var preDate = new Date();
+	preDate.setDate(0); // 0 will result in the last day of the previous month
+	var preData = getData(preDate.getMonth());
+	document.getElementById("preQ").value = preData["Q"];
+	document.getElementById("pre1").value = preData["1"];
+	document.getElementById("pre2").value = preData["2"];
+	document.getElementById("preMonth").innerHTML = 
+		preDate.toLocaleString("ru-ru", {month: "long"}).toUpperCase();
+
+	if (!k)
+	{
+		k = preData["k"];
+		document.getElementById("k").value = k;
+	}
+
+	updateResult();
+}
+
+function postflight()
+{
+	console.log("postflight");
+
+	var d = new Date();
+	
+	var curMonth = d.getMonth();
+	var curData = getData(curMonth);
+	curData["Q"] = document.getElementById("curQ").value;
+	curData["1"] = document.getElementById("cur1").value;
+	curData["2"] = document.getElementById("cur2").value;
+	curData["k"] = document.getElementById("k").value;
+	setData(curMonth, curData);
+	
+	var preMonth = curMonth == 1 ? 12 : curMonth - 1;
+	var preData = getData(preMonth);
+	preData["Q"] = document.getElementById("preQ").value;
+	preData["1"] = document.getElementById("pre1").value;
+	preData["2"] = document.getElementById("pre2").value;
+	setData(preMonth, preData);
+}
+
+function updateResult() 
+{
+	try
+	{
+		var preQ = parseFloat(document.getElementById("preQ").value);
+		var curQ = parseFloat(document.getElementById("curQ").value);
+		var q = curQ - preQ;
+		document.getElementById("q").value = q;
+
+		var pre1 = parseFloat(document.getElementById("pre1").value);
+		var cur1 = parseFloat(document.getElementById("cur1").value);
+		document.getElementById("1").value = cur1 - pre1;
+
+		var pre2 = parseFloat(document.getElementById("pre2").value);
+		var cur2 = parseFloat(document.getElementById("cur2").value);
+		document.getElementById("2").value = cur2 - pre2;
+
+		var k = parseFloat(document.getElementById("k").value);
+		var v1 = cur1 - pre1;
+		var v2 = cur2 - pre2;
+		
+		var formula = "(" + String(q) + " - (" + String(v1) + " + " + String(v2) + ") * " + String(k) + ") / 12024.6";
+		var res = eval(formula);
+		formula += " = " + Math.round(res * 1000000) / 1000000;
+		document.getElementById("formula").innerHTML = formula;
+		document.getElementById("formula").style.color = res < 0 ? "red" : "black";
+	}
+	catch (err)
+	{
+		document.getElementById("result").value = "Error";
+	}
+}
+
+window.onbeforeunload = function(){ postflight(); return null; }
+
+	</script>
+</head>
+
+<body onload="preflight()">
+	<p onclick="postflight()">Расчет объемов потребления тепловой энергии на отопление</p>
+	
+	<table>
+		<tr>
+			<td/>
+			<td colspan="2" style="font-weight: bold;">Показания общедомовых приборов учета</td>
+			<td style="font-weight: bold;">Расход</td>
+		</tr>
+		<tr><td/>
+			<td id="preMonth" style="padding-top: 7px;">ноябрь</td>
+			<td id="curMonth" style="padding-top: 7px;">декабрь</td>
+			<td/>
+		</tr>
+		
+		<tr><td/><td colspan="2" style="padding-top: 11px;">
+			Тепловой энергии и теплоносителя МКТС №187, Гкал</td></tr>
+		<tr>
+			<td>Q</td>
+			<td>
+				<input id="preQ" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="curQ" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="q" type="number" name="display" disabled>
+			</td>
+		</tr>
+
+		<tr><td/><td colspan="2" style="padding-top: 11px;">
+			Водосчетчики ИТП №1 (подъезды 1 и 2), м3</td></tr>
+		<tr>
+			<td>V</td>
+			<td>
+				<input id="pre1" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="cur1" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="1" type="number" name="display" disabled>
+			</td>
+		</tr>
+
+		<tr><td/><td colspan="2" style="padding-top: 11px;">
+			Водосчетчики ИТП №2 (подъезды 3,4 и 5), м3</td></tr>
+		<tr>
+			<td>V</td>
+			<td>
+				<input id="pre2" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="cur2" type="number" name="display" oninput="updateResult()">
+			</td>
+			<td>
+				<input id="2" type="number" name="display" disabled>
+			</td>
+		</tr>
+
+		<tr><td/><td colspan="3" style="padding-top: 11px;">
+			Коэффициент расход тепловой энергии на приготовление горячей воды, Гкал/м3</td></tr>
+		<tr>
+			<td>K</td>
+			<td>
+				<input id="k" type="number" name="display" oninput="updateResult()">
+			</td>
+		</tr>
+
+		<tr><td/><td colspan="3" style="padding-top: 11px;">
+			Расход тепловой энергии на отопление, Гкал/м2</td></tr>
+		<tr>
+			<td></td>
+			<td id="formula" style="font-weight: bold; font-size: 20px; "
+				colspan="3"></td>
+		</tr>
+	</table>
+</body>
+
+</html>
